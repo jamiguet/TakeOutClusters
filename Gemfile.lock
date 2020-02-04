@@ -1,0 +1,17 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    descriptive_statistics (2.5.1)
+    haversine (0.3.2)
+    minitest (5.14.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  descriptive_statistics
+  haversine
+  minitest
+
+BUNDLED WITH
+   2.1.4
