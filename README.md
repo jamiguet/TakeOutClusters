@@ -32,6 +32,8 @@ Pull requests for fixing WTFs welcome.
 Command sequence to install and run this sample application
 
     git clone git@github.com:jamiguet/TakeOutClusters.git
+    cd TakeOutClusters/
+    git checkout origin/develop -b develop
     bundler install
     bundler exec rake test
     
