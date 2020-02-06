@@ -1,13 +1,15 @@
-require 'haversine'
-
+Identity = ->(val) { val }
 
 class Position
 
   def -(object)
-    Segment.new(self, object)
+    Segment.new(object, self, @distance, @time_lapse)
   end
 
-  def initialize(data, mapping = {}, transform = {}, formatter = {})
+  def initialize(data, mapping, transform, formatter, distance, time_lapse)
+
+    @distance = distance
+    @time_lapse = time_lapse
 
     data.keys.each do |field|
 
@@ -47,7 +49,7 @@ class Position
     populate(data, mapping, transform)
   end
 
-  def populate (data, mapping, transform)
+  def populate(data, mapping, transform)
 
     data.each do |src, value|
 
@@ -67,29 +69,32 @@ end
 
 class PositionFactory
 
-  def initialize(mapping, transform, formatter)
+  def initialize(mapping = {}, transform = {}, formatter = {}, distance = Identity, time_lapse = Identity)
     @mapping = mapping
     @transform = transform
     @formatter = formatter
+    @distance = distance
+    @time_lapse = time_lapse
   end
 
   def from_hash(data)
-    Position.new(data, @mapping, @transform, @formatter)
+    Position.new(data, @mapping, @transform, @formatter, @distance, @time_lapse)
   end
 
 end
 
-# TODO Adapt segment so that it distance speed and time_lapse methods can be injected
 class Segment
 
-  def initialize(previous, current)
+  def initialize(previous, current, distance, time_lapse)
     raise "Previous after current" unless previous.time_stamp <= current.time_stamp
     @previous = previous
     @current = current
+    @distance = distance
+    @time_lapse = time_lapse
   end
 
   def distance
-    Haversine.distance(@previous.latitude, @previous.longitude, @current.latitude, @current.longitude).to_km
+    @distance.call(@previous, @current)
   end
 
   def speed
@@ -99,11 +104,49 @@ class Segment
   end
 
   def time_lapse
-    (@current.time_stamp - @previous.time_stamp) / 60.0 ** 2
+    @time_lapse.call(@previous, @current)
   end
 
   def to_s
     "Segment [#{@previous.pp_time_stamp}] => [#{@current.pp_time_stamp}]  #{distance.round(2)} Km, [#{speed.round(2)}] km/h"
+  end
+
+end
+
+class Cluster
+
+  def initialize(inclusion_predicate, centroid)
+    @inclusion_predicate = inclusion_predicate
+    @centroid = centroid
+    @contents = []
+    @centroid_value = {}
+  end
+
+  def present!(point)
+    if @contents.empty? or @inclusion_predicate.call(point, @centroid_value)
+      @contents << point
+      @centroid_value = @centroid.call(@contents)
+      true
+    else
+      false
+    end
+  end
+
+  def centroid
+    @centroid_value
+  end
+
+  def <<(point)
+    @contents << point
+  end
+
+  def to_s
+    centroid_disp = @centroid.call(@contents).map { |key, value| "#{key} => #{value}" }
+    "Cluster size: #{@contents.size}, centroid #{centroid_disp} "
+  end
+
+  def size
+    @contents.size
   end
 
 end
